@@ -392,13 +392,15 @@
 
   // Choose one preset compatible with A3 backend
   function getSelectedPresets() {
-    // map checkboxes → backend presets (only 1080p & 720p are true presets in A3)
     const selected = Array.from(document.querySelectorAll(".res"))
-      .filter(cb => cb.checked).map(cb => cb.value);
+      .filter(cb => cb.checked)
+      .map(cb => cb.value);
+
     const presets = [];
     if (selected.includes("1080p")) presets.push("mp4-1080p");
     if (selected.includes("720p"))  presets.push("mp4-720p");
-    // (480p/360p aren’t distinct on the backend—skip or map to 720p if you want duplicates)
+    if (selected.includes("480p"))  presets.push("mp4-480p");
+    if (selected.includes("360p"))  presets.push("mp4-360p");
     return presets;
 }
 

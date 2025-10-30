@@ -6,8 +6,10 @@ from typing import Dict
 
 # ---- Preset → resolution/CRF map ----
 PRESET_SPECS: Dict[str, Dict[str, int]] = {
-    "mp4-720p":  {"width": 1280, "height": 720,  "crf": 23},
     "mp4-1080p": {"width": 1920, "height": 1080, "crf": 23},
+    "mp4-720p":  {"width": 1280, "height": 720,  "crf": 23},
+    "mp4-480p":  {"width":  854, "height": 480,  "crf": 24},
+    "mp4-360p":  {"width":  640, "height": 360,  "crf": 25},
 }
 
 def _args_for_intensity(level: str) -> list[str]:
