@@ -6,6 +6,7 @@ import json
 
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
 from .auth import get_current_user, validate_login, create_access_token, USERS
@@ -15,6 +16,8 @@ from common.aws import sqs
 from common.config import assert_core_env, SQS_URL
 
 app = FastAPI(title="CAB432 A3 Video Transcoder")
+
+app.mount("/static", StaticFiles(directory="api/static"), name="static")
 
 @app.on_event("startup")
 def _startup():
@@ -30,8 +33,7 @@ def health():
 
 @app.get("/")
 def root():
-    # if you want to serve an index, keep a simple message or point to /static
-    return {"message": "A3 Transcoder API. See /static for UI."}
+    return FileResponse("api/static/index.html")
 
 # ----------------- Auth -----------------
 class LoginReq(BaseModel):

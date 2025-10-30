@@ -1,0 +1,25 @@
+<!-- app/static/callback.html -->
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Signing in…</title>
+  <script>
+    (function () {
+      // Parse URL fragment (after #)
+      const hash = new URLSearchParams(window.location.hash.slice(1));
+      const access = hash.get("access_token");
+      const idt = hash.get("id_token"); // not required, just FYI
+      const err = hash.get("error_description") || hash.get("error");
+      if (err) {
+        alert("Login error: " + err);
+      } else if (access) {
+        sessionStorage.setItem("access_token", access);
+      }
+      // Go back to the app root (or wherever you want)
+      window.location.replace("/");
+    })();
+  </script>
+</head>
+<body>Redirecting…</body>
+</html>
