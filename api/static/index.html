@@ -382,7 +382,7 @@
     }
   };
 
-  // --- multi-resolution helpers (keep your existing UX) ---
+  // --- multi-resolution helpers (keep the existing UX) ---
   $("btnSelectAll").onclick = () => {
     document.querySelectorAll(".res").forEach(cb => cb.checked = true);
   };
@@ -391,83 +391,111 @@
   };
 
   // Choose one preset compatible with A3 backend
-  function pickPresetFromSelections() {
+  function getSelectedPresets() {
+    // map checkboxes → backend presets (only 1080p & 720p are true presets in A3)
     const selected = Array.from(document.querySelectorAll(".res"))
       .filter(cb => cb.checked).map(cb => cb.value);
-    // priority: 1080p → 720p → 480p → 360p
-    if (selected.includes("1080p")) return "mp4-1080p";
-    if (selected.includes("720p"))  return "mp4-720p";
-    if (selected.includes("480p"))  return "mp4-720p"; // closest supported
-    if (selected.includes("360p"))  return "mp4-720p"; // closest supported
-    return null;
-  }
+    const presets = [];
+    if (selected.includes("1080p")) presets.push("mp4-1080p");
+    if (selected.includes("720p"))  presets.push("mp4-720p");
+    // (480p/360p aren’t distinct on the backend—skip or map to 720p if you want duplicates)
+    return presets;
+}
+
 
   // --- create job (A3) ---
   $("btnConvert").onclick = async () => {
     try {
       if (!s3InputKey) return alert("Upload a video first.");
-      const preset = pickPresetFromSelections();
-      if (!preset) return alert("Pick at least one resolution.");
+      const presets = getSelectedPresets();
+      if (presets.length === 0) return alert("Pick at least one of 1080p or 720p.");
 
-      const res = await api("/transcode", {
-        method: "POST",
-        headers: {"Content-Type":"application/json"},
-        body: JSON.stringify({ inputKey: s3InputKey, preset })
+      // clear previous outputs and status
+      $("outputs").innerHTML = "";
+      setStatus("running");
+      $("convertInfo").textContent = "";
+      $("logs").textContent = "Creating jobs…";
+
+      const jobs = [];
+      for (const p of presets) {
+        const res = await api("/transcode", {
+          method: "POST",
+          headers: {"Content-Type":"application/json"},
+          body: JSON.stringify({ inputKey: s3InputKey, preset: p })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || "Job create failed");
+        jobs.push({ jobId: data.jobId, preset: p });
+      }
+
+      // Show a small card per job and start polling each
+      const grid = document.createElement("div");
+      grid.className = "vidgrid";
+      $("outputs").appendChild(grid);
+
+      jobs.forEach(j => {
+        const card = document.createElement("div");
+        card.className = "viditem";
+        card.innerHTML = `
+          <div class="tiny" style="margin-bottom:6px;">${j.preset} — <code>${j.jobId}</code></div>
+          <div class="logs" style="min-height:64px;">Queued…</div>
+          <div class="spacer" style="height:6px;"></div>
+          <div class="vidname"></div>
+        `;
+        grid.appendChild(card);
+        startPollingJob(j.jobId, card);
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.detail || "Job create failed");
 
-      currentJobId = data.jobId;
-      $("convertInfo").textContent = `Created job #${currentJobId} (${preset})`;
-      $("logs").textContent = "Transcode started… polling status every 2s.";
-      setStatus("RUNNING");
-      startPolling();
-      loadHistory();
+      $("convertInfo").textContent =
+        `Created ${jobs.length} job(s): ${jobs.map(j=>j.jobId).join(", ")}`;
+
     } catch (e) {
       $("logs").textContent = "Create job error: " + e.message;
       setStatus("error");
     }
   };
 
+
   // --- polling (A3) ---
-  function startPolling() {
-    if (pollTimer) clearInterval(pollTimer);
-    pollTimer = setInterval(async () => {
-      const r = await api(`/jobs/${currentJobId}`);
+  function startPollingJob(jobId, cardEl) {
+    const logBox = cardEl.querySelector(".logs");
+    const nameBox = cardEl.querySelector(".vidname");
+    const timer = setInterval(async () => {
+      const r = await api(`/jobs/${jobId}`);
       const data = await r.json();
 
       if (data.detail) {
-        $("logs").textContent = "Job not found.";
-        clearInterval(pollTimer);
+        logBox.textContent = "Job not found.";
+        clearInterval(timer);
         return;
       }
 
-      $("logs").textContent = JSON.stringify(data, null, 2);
-      setStatus(String(data.status || "").toLowerCase());
+      logBox.textContent = JSON.stringify(data, null, 2);
 
       if (data.status === "DONE" || data.status === "FAILED") {
-        clearInterval(pollTimer);
-        setStatus(String(data.status).toLowerCase());
-
+        clearInterval(timer);
         if (data.status === "DONE" && data.downloadUrl) {
           const name = (data.outputKey || "").split("/").pop() || "output.mp4";
-          $("outputs").innerHTML = `
-            <div class="vidgrid">
-              <div class="viditem">
-                <video controls preload="metadata" playsinline src="${data.downloadUrl}"></video>
-                <div class="vidname">
-                  <a href="${data.downloadUrl}" target="_blank" rel="noopener">${escapeHtml(name)}</a>
-                </div>
-              </div>
-            </div>
-          `;
+          // add a playable <video> above logs
+          const video = document.createElement("video");
+          video.controls = true;
+          video.preload = "metadata";
+          video.playsInline = true;
+          video.src = data.downloadUrl;
+          cardEl.insertBefore(video, logBox);
+          nameBox.innerHTML = `<a href="${data.downloadUrl}" target="_blank" rel="noopener">${escapeHtml(name)}</a>`;
         } else {
-          $("outputs").innerHTML = "";
+          nameBox.textContent = "(failed)";
         }
-        loadHistory();
+
+        // If all jobs finished, relax the global pill
+        const anyRunning = Array.from(document.querySelectorAll(".viditem .logs"))
+          .some(el => /"status":\s*"RUNNING"/i.test(el.textContent));
+        if (!anyRunning) setStatus("idle");
       }
     }, 2000);
   }
+
 
   // --- history (no-op for A3; keep UI stable) ---
   $("ownerFilter")?.addEventListener("change", loadHistory);
