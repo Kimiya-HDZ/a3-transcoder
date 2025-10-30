@@ -1,213 +1,529 @@
-<!doctype html>
-<html>
+<!DOCTYPE html>
+<html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <title>A3 Transcoder</title>
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta charset="UTF-8" />
+  <title>Video Transcoder</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
-    body { font-family: system-ui, Arial, sans-serif; margin: 0; background:#f6f6f6; color:#222; }
-    .wrap { max-width: 900px; margin: 30px auto; padding: 0 16px; }
-    .card { background:#fff; border:1px solid #e6e6e6; border-radius:12px; padding:16px; margin-bottom:14px; box-shadow:0 6px 18px rgba(0,0,0,.06); }
-    h1 { margin:0 0 14px; }
-    label { display:block; margin:10px 0 6px; font-weight:600; }
-    input[type=text], input[type=password], select, input[type=file] { width:100%; padding:10px; border:1px solid #ccc; border-radius:8px; }
-    button { border:0; border-radius:10px; padding:12px 14px; background:#222; color:#fff; font-weight:700; cursor:pointer; }
-    button[disabled] { opacity:.5; cursor:not-allowed; }
-    .row { display:flex; gap:10px; }
+    :root {
+      --bg: #DDD0C8;       /* beige background */
+      --panel: #f3e8e1;    /* lighter beige panel */
+      --muted: #c2b8b2;    /* muted beige border */
+      --text: #323232;     /* dark grey text */
+      --accent: #323232;   /* dark grey button base */
+      --accent2: #444;     /* slightly darker grey for hover */
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Inter, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      display: flex;
+      justify-content: center;
+    }
+    .wrap { width:100%; max-width:980px; padding:28px; }
+    h1 { margin:0 0 18px; font-size:28px; letter-spacing:.3px; }
+    .topbar { display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; }
+    .card {
+      background: var(--panel);
+      border:1px solid var(--muted);
+      border-radius:14px;
+      padding:18px;
+      margin-bottom:16px;
+      box-shadow: 0 6px 24px rgba(0,0,0,.15);
+    }
+    .step { font-weight:600; margin-bottom:8px; }
+    label { display:block; margin:8px 0 6px; }
+    input[type="file"], select, input[type="text"], input[type="password"] {
+      width:100%;
+      background:#fff;
+      border:1px solid var(--muted);
+      color: var(--text);
+      padding:12px;
+      border-radius:10px;
+    }
+    button {
+      padding:12px 14px;
+      border:0; border-radius:10px; font-weight:700; color:#fff; cursor:pointer;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+    }
+    button:hover { filter: brightness(1.1); }
+    .row { display:flex; gap:12px; }
     .row > * { flex:1; }
+    .logs { white-space:pre-wrap; background:#fff; border:1px solid var(--muted); border-radius:10px; padding:12px; font-size:13px; color: var(--text); }
+    .pill { display:inline-block; padding:4px 10px; border-radius:999px; background:#fff; border:1px solid var(--muted); margin-right:6px; color: var(--text); }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .grid { display:grid; grid-template-columns: 1fr 1fr; gap:8px; }
+    .chk  { background:#fff; border:1px solid var(--muted); border-radius:10px; padding:10px; color: var(--text); }
+    .chk input { margin-right:8px; }
+    table { width:100%; border-collapse:collapse; background:#fff; border:1px solid var(--muted); border-radius:10px; overflow:hidden; }
+    th, td { padding:10px; border-bottom:1px solid #e6ddd8; color: var(--text); }
+    th { text-align:left; background:#f9f4f1; }
+    .right { text-align:right; }
+    .spacer { height:8px; }
     .hidden { display:none; }
-    .pill { display:inline-block; padding:4px 10px; border-radius:999px; background:#eee; }
-    .logs { white-space:pre-wrap; background:#fafafa; border:1px dashed #ddd; border-radius:8px; padding:10px; font-size:13px; }
-    .vid { margin-top:10px; }
-    a { color:#222; }
+    .tiny { font-size: 13px; opacity:.85; user-select:none; }
+
+    /* video preview grid */
+    .vidgrid {
+      display: grid;
+      grid-template-columns: 1fr 1fr; /* 2 columns; auto-wrap on small screens */
+      gap: 12px;
+    }
+    @media (max-width: 720px) {
+      .vidgrid { grid-template-columns: 1fr; } /* 1 column on mobile */
+    }
+    .viditem {
+      background: #fff;
+      border: 1px solid var(--muted);
+      border-radius: 10px;
+      padding: 10px;
+      color: var(--text);
+    }
+    .viditem video {
+      width: 100%;
+      height: auto;
+      max-height: 260px;   /* small preview height */
+      background: #000;    /* letterbox background */
+      border-radius: 8px;
+      display: block;
+    }
+    .vidname {
+      margin-top: 8px;
+      font-size: 0.95rem;
+      word-break: break-all;
+    }
+
   </style>
 </head>
 <body>
   <div class="wrap">
-    <h1>A3 Transcoder</h1>
 
-    <!-- Login -->
-    <div class="card" id="loginCard">
+    <div class="topbar">
+      <h1>My Video Transcoder</h1>
+      <div id="userBar" class="hidden">
+        <span id="whoami"></span>
+        <span class="spacer" style="display:inline-block;width:8px;"></span>
+        <button id="btnLogout" type="button">Logout</button>
+      </div>
+    </div>
+
+    <!-- LOGIN CARD -->
+    <div id="loginCard" class="card">
+      <div class="step">Login</div>
       <div class="row">
         <div>
           <label>Username</label>
-          <input id="user" type="text" placeholder="kimia / sara / admin">
+          <input type="text" id="loginUser" placeholder="E.g. kimia, sara, admin" />
         </div>
         <div>
           <label>Password</label>
-          <input id="pass" type="password" placeholder="••••••••">
+          <input type="password" id="loginPass" />
         </div>
       </div>
       <div class="row" style="margin-top:10px;">
-        <button id="btnLogin">Login</button>
+        <button id="btnLogin" type="button">Login</button>
       </div>
-      <div id="loginMsg" style="margin-top:10px;color:#b00;"></div>
+      <div id="loginMsg" style="margin-top:10px;"></div>
     </div>
 
-    <!-- App -->
-    <div class="card hidden" id="appCard">
-      <div style="display:flex; align-items:center; gap:10px; justify-content:space-between;">
-        <div>
-          <span id="who"></span>
+    <!-- APP CONTENT (hidden until login) -->
+    <div id="appContent" class="hidden">
+
+      <!-- Upload -->
+      <div class="card">
+        <div class="step">1) Upload Video</div>
+        <input type="file" id="fileInput" accept="video/*" />
+        <div class="row" style="margin-top:10px;">
+          <button id="btnUpload">Upload</button>
+        </div>
+        <div id="uploadInfo" style="margin-top:10px;"></div>
+      </div>
+
+      <!-- Settings -->
+      <div class="card">
+        <div class="step">2) Choose Settings</div>
+        <div class="row">
+          <div>
+            <label>Format</label>
+            <select id="format">
+              <option value="mp4">MP4 (H.264/AAC)</option>
+            </select>
+          </div>
+        </div>
+
+        <label style="margin-top:10px;">Resolutions (pick one or more)</label>
+        <div class="grid">
+          <label class="chk"><input type="checkbox" class="res" value="1080p"> HD 1080p (1920×1080)</label>
+          <label class="chk"><input type="checkbox" class="res" value="720p">  HD 720p (1280×720)</label>
+          <label class="chk"><input type="checkbox" class="res" value="480p">  480p (854×480)</label>
+          <label class="chk"><input type="checkbox" class="res" value="360p">  360p (640×360)</label>
+        </div>
+
+        <div class="row" style="margin-top:8px;">
+          <button id="btnSelectAll" type="button">Select All</button>
+          <button id="btnClearAll"  type="button">Clear</button>
+        </div>
+
+        <div class="row" style="margin-top:8px;">
+          <button id="btnConvert">Convert</button>
+        </div>
+        <div id="convertInfo" style="margin-top:10px;"></div>
+      </div>
+
+      <!-- Status -->
+      <div class="card">
+        <div class="step">3) Status & Outputs</div>
+        <div id="statusLine" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
           <span class="pill" id="statusPill">idle</span>
+          <span id="statusMsg"></span>
+          <label class="tiny" style="margin-left:auto;">
+            <input type="checkbox" id="toggleDebug"> Show technical details
+          </label>
         </div>
-        <button id="btnLogout">Logout</button>
+
+        <div id="debugBox" class="hidden" style="margin-top:8px;">
+          <div class="logs" id="logs">Logs will appear here…</div>
+        </div>
+
+        <div id="outputs" style="margin-top:10px;"></div>
+
       </div>
 
-      <hr style="margin:14px 0; border:none; border-top:1px solid #eee;">
+      <!-- History -->
+      <div class="card">
+        <div class="step">History</div>
 
-      <label>1) Pick a video file</label>
-      <input type="file" id="file" accept="video/*">
-      <div class="row" style="margin-top:10px;">
-        <div>
-          <label>Preset</label>
-          <select id="preset">
-            <option value="mp4-720p">mp4-720p (1280×720)</option>
-            <option value="mp4-1080p">mp4-1080p (1920×1080)</option>
-          </select>
+        <div id="adminFilterRow" class="row hidden" style="margin-bottom:8px;">
+          <div>
+            <label>View history for (admin)</label>
+            <select id="ownerFilter">
+              <option value="">All users</option>
+              <option value="kimia">kimia</option>
+              <option value="sara">sara</option>
+            </select>
+          </div>
+          <div class="spacer"></div>
         </div>
-        <div style="align-self:end;">
-          <button id="btnStart">Upload & Transcode</button>
+
+        <div class="row">
+          <div>
+            <h3 style="margin:6px 0;">Uploads</h3>
+            <table id="tblUploads">
+              <thead><tr><th>ID</th><th>Owner</th><th>Name</th><th class="right">Size (MB)</th><th>Created</th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="row" style="margin-top:10px;">
+          <div>
+            <h3 style="margin:6px 0;">Jobs</h3>
+            <table id="tblJobs">
+              <thead><tr><th>ID</th><th>Owner</th><th>Video</th><th>Status</th><th>Started</th><th>Finished</th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
         </div>
       </div>
 
-      <div id="jobLine" class="hidden" style="margin-top:10px;">
-        Job ID: <code id="jobId"></code>
-      </div>
+    </div> <!-- /#appContent -->
 
-      <div id="result" class="vid"></div>
-
-      <div class="logs" id="logs" style="margin-top:10px;">Ready.</div>
-    </div>
   </div>
 
   <script>
-    // --- helpers ---
-    const $ = (id) => document.getElementById(id);
-    const show = (el, on) => el.classList[on ? "remove" : "add"]("hidden");
-    const setStatus = (t) => { $("statusPill").textContent = t; };
+  // --- auth state ---
+  let token = null;
+  let currentUser = null; // {username, role}
+  let videoId = null;         // kept for UI continuity
+  let currentJobId = null;
+  let pollTimer = null;
+  let s3InputKey = null;      // NEW: S3 key from presigned upload
 
-    let token = null;
-    let pollTimer = null;
+  // --- helpers ---
+  const $ = (id) => document.getElementById(id);
+  const show = (el, on) => el.classList[on ? "remove" : "add"]("hidden");
+  const setStatus = (txt) => { $("statusPill").textContent = txt; };
 
-    function saveToken(t){ localStorage.setItem("jwt", t); }
-    function loadToken(){ return localStorage.getItem("jwt"); }
-    function clearToken(){ localStorage.removeItem("jwt"); }
+  function saveToken(t){ localStorage.setItem("jwt", t); }
+  function loadToken(){ return localStorage.getItem("jwt"); }
+  function clearToken(){ localStorage.removeItem("jwt"); }
 
-    async function api(path, options = {}){
-      const headers = options.headers || {};
-      if (token) headers["Authorization"] = "Bearer " + token;
-      return fetch(path, { ...options, headers });
-    }
+  async function api(path, options={}){
+    const headers = options.headers || {};
+    if (token) headers["Authorization"] = "Bearer " + token;
+    return fetch(path, {...options, headers});
+  }
 
-    async function resume(){
-      const t = loadToken();
-      if (!t) return false;
-      token = t;
-      const r = await api("/auth/me");
-      if (!r.ok) { clearToken(); token = null; return false; }
-      const me = await r.json();
-      $("who").textContent = `${me.username} (${me.role})`;
-      show($("loginCard"), false);
-      show($("appCard"), true);
-      setStatus("idle");
+  // --- login / logout ---
+  async function tryResumeSession(){
+    const t = loadToken();
+    if (!t) return false;
+    token = t;
+    const r = await api("/auth/me");
+    if (r.ok){
+      currentUser = await r.json();
+      afterLogin();
       return true;
+    } else {
+      clearToken();
+      token = null;
+      return false;
     }
+  }
 
-    $("btnLogin").onclick = async () => {
-      $("loginMsg").textContent = "";
-      const username = $("user").value.trim();
-      const password = $("pass").value.trim();
-      try {
-        const r = await fetch("/auth/login", {
-          method: "POST",
-          headers: {"Content-Type":"application/json"},
-          body: JSON.stringify({ username, password })
-        });
-        const data = await r.json();
-        if (!r.ok) throw new Error(data.detail || "Login failed");
-        token = data.access_token;
-        saveToken(token);
-        await resume();
-      } catch (e) {
-        $("loginMsg").textContent = e.message;
-      }
-    };
+  $("btnLogin").onclick = async () => {
+    const username = $("loginUser").value.trim();
+    const password = $("loginPass").value.trim();
+    $("loginMsg").textContent = "";
+    try {
+      const res = await fetch("/auth/login", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({ username, password })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || "Login failed");
+      token = data.access_token;
+      saveToken(token);
+      const me = await api("/auth/me");
+      currentUser = await me.json();
+      afterLogin();
+    } catch (e) {
+      $("loginMsg").textContent = e.message;
+    }
+  };
 
-    $("btnLogout").onclick = () => {
-      clearToken(); token = null;
-      if (pollTimer) clearInterval(pollTimer);
-      pollTimer = null;
-      $("logs").textContent = "Logged out.";
-      show($("appCard"), false); show($("loginCard"), true);
-    };
+  $("btnLogout").onclick = () => {
+    clearToken();
+    token = null;
+    currentUser = null;
 
-    // --- main flow ---
-    $("btnStart").onclick = async () => {
-      const f = $("file").files[0];
-      if (!f) return alert("Pick a file first.");
-      $("result").innerHTML = "";
-      setStatus("preparing");
-      $("logs").textContent = "Requesting pre-signed URL…";
+    if (pollTimer) clearInterval(pollTimer);
+    pollTimer = null;
+    videoId = null;
+    currentJobId = null;
+    s3InputKey = null;
 
-      // 1) Ask API for pre-signed PUT URL
-      const upRes = await api("/videos/upload-url", {
+    $("outputs").innerHTML = "";
+    $("logs").textContent = "Logged out.";
+    setStatus("idle");
+    $("uploadInfo").textContent = "";
+    $("convertInfo").textContent = "";
+    $("fileInput").value = "";
+    document.querySelectorAll(".res").forEach(cb => (cb.checked = false));
+
+    show($("userBar"), false);
+    show($("loginCard"), true);
+    show($("appContent"), false);
+    $("loginMsg").textContent = "Logged out.";
+  };
+
+  function afterLogin(){
+    $("outputs").innerHTML = "";
+    $("logs").textContent = "";
+    setStatus("idle");
+    $("uploadInfo").textContent = "";
+    $("convertInfo").textContent = "";
+    $("fileInput").value = "";
+    videoId = null;
+    currentJobId = null;
+    s3InputKey = null;
+    if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+
+    $("whoami").textContent = `${currentUser.username} (${currentUser.role})`;
+    show($("userBar"), true);
+    show($("loginCard"), false);
+    show($("appContent"), true);
+
+    // keep the UI; history loading is a no-op under A3
+    show($("adminFilterRow"), currentUser.role === "admin");
+    loadHistory();
+  }
+
+  // --- UPLOAD (A3: pre-signed URL flow) ---
+  $("btnUpload").onclick = async () => {
+    try {
+      const f = $("fileInput").files[0];
+      if (!f) return alert("Choose a file first.");
+
+      // 1) ask API for a presigned PUT URL
+      const up = await api("/videos/upload-url", {
         method: "POST",
         headers: {"Content-Type":"application/json"},
         body: JSON.stringify({ filename: f.name, contentType: f.type || "video/mp4" })
       });
-      const up = await upRes.json();
-      if (!upRes.ok) { $("logs").textContent = "Upload-URL error: " + (up.detail || upRes.status); setStatus("error"); return; }
+      const info = await up.json();
+      if (!up.ok) throw new Error(info.detail || "Failed to get upload URL");
 
       // 2) PUT the file to S3 directly
-      $("logs").textContent = "Uploading to S3…";
-      const putRes = await fetch(up.uploadUrl, { method: "PUT", headers: { "Content-Type": f.type || "video/mp4" }, body: f });
-      if (!putRes.ok) { $("logs").textContent = "S3 upload failed ("+putRes.status+")"; setStatus("error"); return; }
+      const putRes = await fetch(info.uploadUrl, {
+        method: "PUT",
+        headers: { "Content-Type": f.type || "video/mp4" },
+        body: f
+      });
+      if (!putRes.ok) throw new Error("S3 upload failed");
 
-      // 3) Create a job
-      $("logs").textContent = "Creating job…";
-      const preset = $("preset").value;
-      const jobRes = await api("/transcode", {
+      // 3) record S3 key for job creation
+      s3InputKey = info.key;
+
+      // Keep legacy field for your UI messages
+      videoId = s3InputKey;
+
+      $("uploadInfo").textContent = `Uploaded to S3: ${s3InputKey}`;
+      $("logs").textContent = "Upload complete (pre-signed).";
+      setStatus("ready");
+      loadHistory();
+    } catch (e) {
+      $("logs").textContent = "Upload error: " + e.message;
+      setStatus("error");
+    }
+  };
+
+  // --- multi-resolution helpers (keep your existing UX) ---
+  $("btnSelectAll").onclick = () => {
+    document.querySelectorAll(".res").forEach(cb => cb.checked = true);
+  };
+  $("btnClearAll").onclick = () => {
+    document.querySelectorAll(".res").forEach(cb => cb.checked = false);
+  };
+
+  // Choose one preset compatible with A3 backend
+  function pickPresetFromSelections() {
+    const selected = Array.from(document.querySelectorAll(".res"))
+      .filter(cb => cb.checked).map(cb => cb.value);
+    // priority: 1080p → 720p → 480p → 360p
+    if (selected.includes("1080p")) return "mp4-1080p";
+    if (selected.includes("720p"))  return "mp4-720p";
+    if (selected.includes("480p"))  return "mp4-720p"; // closest supported
+    if (selected.includes("360p"))  return "mp4-720p"; // closest supported
+    return null;
+  }
+
+  // --- create job (A3) ---
+  $("btnConvert").onclick = async () => {
+    try {
+      if (!s3InputKey) return alert("Upload a video first.");
+      const preset = pickPresetFromSelections();
+      if (!preset) return alert("Pick at least one resolution.");
+
+      const res = await api("/transcode", {
         method: "POST",
         headers: {"Content-Type":"application/json"},
-        body: JSON.stringify({ inputKey: up.key, preset })
+        body: JSON.stringify({ inputKey: s3InputKey, preset })
       });
-      const job = await jobRes.json();
-      if (!jobRes.ok) { $("logs").textContent = "Create job error: " + (job.detail || jobRes.status); setStatus("error"); return; }
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || "Job create failed");
 
-      $("jobId").textContent = job.jobId;
-      show($("jobLine"), true);
-      setStatus("running");
-      $("logs").textContent = "Job queued. Polling status every 2s…";
+      currentJobId = data.jobId;
+      $("convertInfo").textContent = `Created job #${currentJobId} (${preset})`;
+      $("logs").textContent = "Transcode started… polling status every 2s.";
+      setStatus("RUNNING");
+      startPolling();
+      loadHistory();
+    } catch (e) {
+      $("logs").textContent = "Create job error: " + e.message;
+      setStatus("error");
+    }
+  };
 
-      // 4) Poll status
-      if (pollTimer) clearInterval(pollTimer);
-      pollTimer = setInterval(async () => {
-        const r = await api(`/jobs/${job.jobId}`);
-        const data = await r.json();
-        if (!r.ok) { $("logs").textContent = "Status error."; return; }
-        $("logs").textContent = JSON.stringify(data, null, 2);
+  // --- polling (A3) ---
+  function startPolling() {
+    if (pollTimer) clearInterval(pollTimer);
+    pollTimer = setInterval(async () => {
+      const r = await api(`/jobs/${currentJobId}`);
+      const data = await r.json();
 
-        if (data.status === "DONE" || data.status === "FAILED") {
-          clearInterval(pollTimer);
-          setStatus(data.status.toLowerCase());
-          if (data.status === "DONE" && data.downloadUrl) {
-            $("result").innerHTML = `
-              <div>Output ready:</div>
-              <div class="vid">
-                <video controls playsinline src="${data.downloadUrl}" style="max-width:100%; background:#000;"></video>
+      if (data.detail) {
+        $("logs").textContent = "Job not found.";
+        clearInterval(pollTimer);
+        return;
+      }
+
+      $("logs").textContent = JSON.stringify(data, null, 2);
+      setStatus(String(data.status || "").toLowerCase());
+
+      if (data.status === "DONE" || data.status === "FAILED") {
+        clearInterval(pollTimer);
+        setStatus(String(data.status).toLowerCase());
+
+        if (data.status === "DONE" && data.downloadUrl) {
+          const name = (data.outputKey || "").split("/").pop() || "output.mp4";
+          $("outputs").innerHTML = `
+            <div class="vidgrid">
+              <div class="viditem">
+                <video controls preload="metadata" playsinline src="${data.downloadUrl}"></video>
+                <div class="vidname">
+                  <a href="${data.downloadUrl}" target="_blank" rel="noopener">${escapeHtml(name)}</a>
+                </div>
               </div>
-              <div style="margin-top:6px;">
-                <a href="${data.downloadUrl}" target="_blank" rel="noopener">Download MP4</a>
-              </div>
-            `;
-          }
+            </div>
+          `;
+        } else {
+          $("outputs").innerHTML = "";
         }
-      }, 2000);
-    };
+        loadHistory();
+      }
+    }, 2000);
+  }
 
-    // boot
-    resume();
-  </script>
+  // --- history (no-op for A3; keep UI stable) ---
+  $("ownerFilter")?.addEventListener("change", loadHistory);
+
+  $("toggleDebug")?.addEventListener("change", (e) => {
+    const on = e.target.checked;
+    $("debugBox").classList[on ? "remove" : "add"]("hidden");
+  });
+
+  async function loadHistory(){
+    // A3 API doesn’t expose list endpoints. Keep UI but skip calls.
+    try {
+      // leave tables empty; you can wire these if you add list endpoints later
+      renderUploads([]);
+      renderJobs([]);
+    } catch { /* ignore */ }
+  }
+
+  function renderUploads(items){
+    const tb = $("tblUploads").querySelector("tbody");
+    tb.innerHTML = items.map(v => `
+      <tr>
+        <td>${v.id}</td>
+        <td>${v.owner}</td>
+        <td>${escapeHtml(v.orig_name || "")}</td>
+        <td class="right">${(v.size_bytes/1e6).toFixed(2)}</td>
+        <td>${formatDate(v.created_at)}</td>
+      </tr>
+    `).join("");
+  }
+
+  function renderJobs(items){
+    const tb = $("tblJobs").querySelector("tbody");
+    tb.innerHTML = items.map(j => `
+      <tr>
+        <td>${j.id}</td>
+        <td>${j.owner || ""}</td>
+        <td>${j.video_id}</td>
+        <td>${j.status}</td>
+        <td>${formatDate(j.started_at)}</td>
+        <td>${formatDate(j.finished_at)}</td>
+      </tr>
+    `).join("");
+  }
+
+  function formatDate(s){ if(!s) return ""; const d = new Date(s); return d.toLocaleString(); }
+  function escapeHtml(str){ return str.replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+
+  // --- init ---
+  (async () => {
+    const ok = await tryResumeSession();
+    if (!ok) {
+      show($("loginCard"), true);
+    }
+  })();
+</script>
+
 </body>
 </html>
