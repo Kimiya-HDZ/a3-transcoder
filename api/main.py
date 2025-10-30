@@ -17,14 +17,12 @@ from common.config import assert_core_env, SQS_URL
 
 app = FastAPI(title="CAB432 A3 Video Transcoder")
 
+# serve the existing static UI
 app.mount("/static", StaticFiles(directory="api/static"), name="static")
 
 @app.on_event("startup")
 def _startup():
     assert_core_env()
-
-# serve the existing static UI
-app.mount("/static", StaticFiles(directory="api/static"), name="static")
 
 # ----------------- Health / Root -----------------
 @app.get("/health")
